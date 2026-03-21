@@ -9,3 +9,10 @@ __pycache__/
 .env.production
 *.db
 feedback.jsonl
+
+# OS files
+.DS_Store
+
+# Test artifacts
+test-results/
+frontend/test-results/
