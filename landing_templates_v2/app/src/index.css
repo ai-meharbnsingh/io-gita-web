@@ -1,0 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-white: #FAFAF8;
+    --text-black: #1a1a1a;
+    --text-gray: #6b6b6b;
+    --text-light: #9b9b9b;
+    --saffron: #FF6B00;
+    --saffron-light: #FF8533;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply antialiased;
+    font-family: 'Cormorant Garamond', serif;
+    background-color: var(--bg-white);
+    color: var(--text-black);
+  }
+  
+  .sans {
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer components {
+  /* Ultra minimal card */
+  .minimal-card {
+    background: white;
+    border-left: 3px solid var(--saffron);
+    transition: all 0.3s ease;
+  }
+  
+  .minimal-card:hover {
+    background: #FFF8F3;
+    transform: translateX(4px);
+  }
+  
+  /* Saffron button */
+  .saffron-btn {
+    background-color: var(--saffron);
+    color: white;
+    transition: all 0.3s ease;
+  }
+  
+  .saffron-btn:hover {
+    background-color: var(--saffron-light);
+    transform: scale(1.02);
+  }
+  
+  /* Elegant serif headings */
+  .heading-elegant {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+  }
+  
+  /* Sanskrit display */
+  .sanskrit-display {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+  }
+  
+  /* Subtle divider */
+  .divider-subtle {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #e5e5e5, transparent);
+  }
+  
+  /* Progress dot */
+  .progress-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #e5e5e5;
+    transition: all 0.3s ease;
+  }
+  
+  .progress-dot.active {
+    background-color: var(--saffron);
+    transform: scale(1.2);
+  }
+  
+  .progress-dot.completed {
+    background-color: var(--saffron);
+  }
+}
+
+/* Custom scrollbar - minimal */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #e5e5e5;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d5d5d5;
+}
+
+/* Selection */
+::selection {
+  background: rgba(255, 107, 0, 0.15);
+  color: var(--text-black);
+}
