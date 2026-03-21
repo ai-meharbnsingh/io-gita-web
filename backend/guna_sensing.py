@@ -321,53 +321,92 @@ KLESHA_ATOMS = {"KRODHA", "KAMA", "TAMAS"}
 def guna_to_atoms(answers: dict) -> dict:
     """Convert 11 domain answers (S/R/T) to 20 atom weights.
 
+    Uses 3-channel proportional mixing (4-way consensus fix:
+    Claude + Codex/GPT-5.2 + Gemini-2.5-Pro + Kimi).
+
+    Problem solved: Raw additive accumulation let Sattvic answers
+    dominate because S touches ~11 unique atoms vs R(~4) and T(~3).
+    4/11 Sattvic answers produced the same basin as 11/11 Sattvic.
+
+    Fix: Accumulate S/R/T into separate channels, normalize each
+    channel independently (L2), then mix proportionally by count.
+    F = (n_S/11) * normalize(F_S) + (n_R/11) * normalize(F_R) + (n_T/11) * normalize(F_T)
+
     Args:
         answers: {domain_id: "S"|"R"|"T"} for each of the 11 domains.
 
     Returns:
         {atom_name: float_weight} clamped to [-1, +1].
-
-    Polarity rule (absence creates pull):
-        If majority R/T → sattvic atoms go negative (seeking peace/clarity/self)
-        If majority S   → klesha atoms go negative (not driven by anger/desire/inertia)
     """
-    atoms = {a: 0.0 for a in ALL_ATOMS}
+    import math
 
-    # Count guna distribution
+    # Separate channels
+    atoms_s = {a: 0.0 for a in ALL_ATOMS}
+    atoms_r = {a: 0.0 for a in ALL_ATOMS}
+    atoms_t = {a: 0.0 for a in ALL_ATOMS}
+
     counts = {"S": 0, "R": 0, "T": 0}
-    for domain in DOMAINS:
-        did = domain["id"]
-        choice = answers.get(did)
-        if choice in counts:
-            counts[choice] += 1
 
-    # Accumulate atom weights from answers
+    # Accumulate into separate channels
     for domain in DOMAINS:
         did = domain["id"]
         choice = answers.get(did)
         if choice not in ("S", "R", "T"):
             continue
+        counts[choice] += 1
+        target = {"S": atoms_s, "R": atoms_r, "T": atoms_t}[choice]
         for atom, weight in domain["atom_weights"][choice].items():
-            atoms[atom] += weight
+            target[atom] += weight
 
-    # Polarity rule: absence creates pull
-    majority_sattvic = counts["S"] > (counts["R"] + counts["T"])
-    majority_rajasic_tamasic = (counts["R"] + counts["T"]) > counts["S"]
+    # L2-normalize each channel independently
+    def l2_normalize(vec):
+        norm = math.sqrt(sum(v ** 2 for v in vec.values()))
+        if norm < 1e-10:
+            return vec
+        return {k: v / norm for k, v in vec.items()}
 
-    if majority_rajasic_tamasic:
-        # Person is mostly rajasic/tamasic — they LACK and SEEK higher states
-        # Absence = pull (negative weight)
-        for atom in SATTVIC_ATOMS:
-            if abs(atoms[atom]) < 0.05:  # only if not already set by answers
-                atoms[atom] = -0.3
-    elif majority_sattvic:
-        # Person is mostly sattvic — they are NOT driven by afflictions
-        # Absence = gentle negative
-        for atom in KLESHA_ATOMS:
-            if abs(atoms[atom]) < 0.05:
-                atoms[atom] = -0.2
+    atoms_s = l2_normalize(atoms_s)
+    atoms_r = l2_normalize(atoms_r)
+    atoms_t = l2_normalize(atoms_t)
 
-    # Normalize: clamp to [-1, +1]
+    # Proportional mixing: each guna weighted by its fraction of answers
+    total = sum(counts.values()) or 1
+    p_s = counts["S"] / total
+    p_r = counts["R"] / total
+    p_t = counts["T"] / total
+
+    atoms = {}
+    for a in ALL_ATOMS:
+        atoms[a] = p_s * atoms_s[a] + p_r * atoms_r[a] + p_t * atoms_t[a]
+
+    # Opposition injection: minority gunas create negative pull on
+    # the majority guna's characteristic atoms. This prevents the
+    # default attractor (s:53) from capturing mixed profiles.
+    # When 7/11 answers are R, the R channel should push AGAINST
+    # the S-typical atoms that would otherwise attract to s:53.
+    dominant = max(counts, key=counts.get)
+    dom_ratio = counts[dominant] / total
+
+    if dominant == "R" and dom_ratio > 0.5:
+        # Rajasic-dominant: suppress sattvic attractor pull
+        for a in SATTVIC_ATOMS:
+            atoms[a] = atoms.get(a, 0) - 0.5 * dom_ratio
+        # Boost rajasic identity atoms
+        for a in ("RAJAS", "KAMA", "AHANKARA", "RAJYA"):
+            atoms[a] = atoms.get(a, 0) + 0.2 * dom_ratio
+    elif dominant == "T" and dom_ratio > 0.5:
+        # Tamasic-dominant: suppress sattvic attractor pull even more
+        for a in SATTVIC_ATOMS:
+            atoms[a] = atoms.get(a, 0) - 0.4 * dom_ratio
+        # Also boost klesha atoms to strengthen tamasic identity
+        for a in KLESHA_ATOMS:
+            atoms[a] = atoms.get(a, 0) + 0.2 * dom_ratio
+    elif dominant == "S" and dom_ratio > 0.5:
+        # Sattvic-dominant: suppress klesha pull
+        for a in KLESHA_ATOMS:
+            atoms[a] = atoms.get(a, 0) - 0.2 * dom_ratio
+
+    # Final clamp to [-1, +1]
     max_val = max(abs(v) for v in atoms.values()) or 1.0
     if max_val > 1.0:
         atoms = {a: v / max_val for a, v in atoms.items()}
