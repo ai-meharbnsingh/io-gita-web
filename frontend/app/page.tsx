@@ -1,27 +1,33 @@
 "use client";
 
 import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 
-function WaxSeal({ children, size = 100 }: { children: React.ReactNode; size?: number }) {
+function WaxSeal({ size = 140 }: { children?: React.ReactNode; size?: number }) {
   return (
-    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative group cursor-pointer">
-      <div className="wax-seal flex items-center justify-center" style={{ width: size, height: size }}>
-        <div className="text-center z-10">{children}</div>
-      </div>
-      <motion.div
-        className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{ boxShadow: "0 0 30px rgba(139, 0, 0, 0.4), 0 0 60px rgba(139, 0, 0, 0.2)" }}
+    <motion.div whileHover={{ scale: 1.05, rotate: 1 }} whileTap={{ scale: 0.95 }} className="cursor-pointer">
+      <img
+        src="/wax-seal.png"
+        alt="Show Me My Truth"
+        width={size}
+        height={size}
+        className="drop-shadow-lg"
+        style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.3))" }}
       />
     </motion.div>
   );
 }
 
+
 function HeroSection() {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center parchment-texture aged-edges overflow-hidden px-6">
       <div className="devanagari-watermark top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">अ</div>
+
+      {/* Coffee stain decorations */}
+      <div className="absolute top-20 right-20 w-32 h-32 rounded-full border-2 border-[#8B4513]/10 opacity-50" />
+      <div className="absolute bottom-32 left-16 w-24 h-24 rounded-full border border-[#8B4513]/5 opacity-30" />
 
       <div className="relative z-10 text-center max-w-3xl">
         <motion.div
@@ -36,7 +42,7 @@ function HeroSection() {
         </motion.div>
 
         <motion.h1
-          className="text-6xl sm:text-7xl md:text-8xl handwritten text-[#1a1a2e] mb-6 ink-bleed"
+          className="text-5xl sm:text-6xl md:text-7xl handwritten text-[#1a1a2e] mb-6 ink-bleed"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.3 }}
@@ -50,38 +56,17 @@ function HeroSection() {
         </motion.div>
 
         <motion.p
-          className="text-xl sm:text-2xl handwritten text-[#4a4a5e] mb-4 italic"
+          className="text-xl sm:text-2xl handwritten text-[#4a4a5e] mb-12 italic"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.9 }}
         >
-          Do you want comfort, or do you want the truth?
-        </motion.p>
-
-        <motion.p
-          className="text-sm text-[#8B7355] mb-12 italic"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 1.1 }}
-        >
-          AI will tell you what you want to hear.
+          &ldquo;The oldest map of consciousness.
           <br />
-          io-gita shows you what you need to see.
+          The newest physics to read it.&rdquo;
         </motion.p>
 
-        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 1.3, type: "spring" }}>
-          <Link href="/ask">
-            <WaxSeal size={110}>
-              <div className="text-white text-center">
-                <span className="block text-xs tracking-widest opacity-80">SHOW ME</span>
-                <span className="block text-[10px] tracking-wider opacity-60">MY</span>
-                <span className="block text-xs tracking-widest opacity-80">TRUTH</span>
-              </div>
-            </WaxSeal>
-          </Link>
-        </motion.div>
-
-        <motion.p className="mt-12 text-xs text-[#8B7355] mono" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.8 }}>
+        <motion.p className="mt-12 text-xs text-[#8B7355] mono" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3 }}>
           Based on Bhagavad Gita Chapter 18 · 10,000-dimensional Hopfield networks
         </motion.p>
       </div>
@@ -100,6 +85,17 @@ function HeroSection() {
 function VerseSection() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const [showMath, setShowMath] = useState(false);
+
+  useEffect(() => {
+    if (!isInView) return;
+    let interval: ReturnType<typeof setInterval>;
+    const startTimer = setTimeout(() => {
+      setShowMath(true);
+      interval = setInterval(() => setShowMath((prev) => !prev), 8000);
+    }, 5000);
+    return () => { clearTimeout(startTimer); clearInterval(interval); };
+  }, [isInView]);
 
   return (
     <section ref={ref} className="relative py-24 sm:py-32 parchment-texture">
@@ -118,9 +114,28 @@ function VerseSection() {
             <span className="handwritten text-[#8B7355] text-sm">Gita 18.20</span>
           </div>
 
-          <p className="text-3xl sm:text-4xl md:text-5xl handwritten text-[#1a1a2e] leading-relaxed text-center mb-8">
-            सर्वभूतेषु येनैकं भावमव्ययमीक्षते
-          </p>
+          {/* Sanskrit + Math morph */}
+          <div className="text-center mb-8 relative">
+            <motion.p
+              className="text-3xl sm:text-4xl md:text-5xl handwritten text-[#1a1a2e] leading-relaxed"
+              animate={{ opacity: showMath ? 0.15 : 1 }}
+              transition={{ duration: 3 }}
+            >
+              सर्वभूतेषु येनैकं भावमव्ययमीक्षते
+            </motion.p>
+
+            {/* Math overlay */}
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center"
+              initial={{ opacity: 0 }}
+              animate={showMath ? { opacity: 1 } : { opacity: 0 }}
+              transition={{ duration: 3, delay: showMath ? 1 : 0 }}
+            >
+              <p className="mono text-xl sm:text-2xl text-[#B8860B]">
+                ∇E(Q) = 0 → Q* = attractor basin
+              </p>
+            </motion.div>
+          </div>
 
           <p className="text-center text-[#8B7355] italic mb-6">
             Sarva-bhūteṣu yenaikaṁ bhāvam avyayam īkṣate
@@ -135,6 +150,18 @@ function VerseSection() {
           <p className="text-center text-lg text-[#4a4a5e] handwritten">
             &ldquo;That knowledge by which one sees one undivided imperishable reality in all beings&rdquo;
           </p>
+
+          {/* Annotation on right */}
+          <motion.div
+            className="absolute -right-4 top-1/4 w-32 hidden md:block"
+            initial={{ opacity: 0, x: 20 }}
+            animate={isInView ? { opacity: 1, x: 0 } : {}}
+            transition={{ delay: 1.2 }}
+          >
+            <p className="text-[10px] text-[#8B7355] handwritten" style={{ transform: "rotate(3deg)" }}>
+              * The Rishis observed what physics now confirms: consciousness has topology
+            </p>
+          </motion.div>
         </motion.div>
 
         <motion.p
@@ -194,35 +221,87 @@ function PillarsSection() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
-  const pillars = [
-    { sanskrit: "प्रकृति", name: "Prakriti", subtitle: "The Landscape", desc: "60 patterns carved into 10,000 dimensions by the rules of the Gita." },
-    { sanskrit: "गुण", name: "Guna", subtitle: "The Forces", desc: "Sattva lifts. Rajas drives. Tamas binds. Your answers set the direction." },
-    { sanskrit: "गति", name: "Gati", subtitle: "The Trajectory", desc: "The physics decides where you land. Not an algorithm. Not AI. Dynamics." },
-  ];
-
   return (
     <section ref={ref} className="relative py-24 sm:py-32 parchment-texture">
       <div className="max-w-6xl mx-auto px-6">
         <motion.div className="text-center mb-16" initial={{ opacity: 0, y: 30 }} animate={isInView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.8 }}>
-          <p className="text-[#8B7355] mono text-xs tracking-[0.3em] mb-4">HOW IT WORKS</p>
-          <h2 className="text-3xl sm:text-4xl handwritten text-[#1a1a2e]">Three Pillars</h2>
+          <p className="text-[#8B7355] mono text-xs tracking-[0.3em] mb-4">THE FRAMEWORK</p>
+          <h2 className="text-3xl sm:text-4xl handwritten text-[#1a1a2e]">Three Pillars of Understanding</h2>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-8">
-          {pillars.map((p, i) => (
-            <motion.div
-              key={p.name}
-              className="p-8 border border-[#8B7355]/20 rounded-lg bg-[#F5F0E8]/60 hover:bg-[#F5F0E8] hover:border-[#B8860B]/40 transition-all duration-500"
-              initial={{ opacity: 0, y: 40 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.2 + i * 0.15 }}
-            >
-              <p className="text-3xl handwritten text-[#B8860B] mb-2">{p.sanskrit}</p>
-              <h3 className="text-xl handwritten text-[#1a1a2e] mb-1">{p.name}</h3>
-              <p className="text-sm mono text-[#8B7355] tracking-wider mb-6">— {p.subtitle} —</p>
-              <p className="text-[#4a4a5e] text-sm leading-relaxed">{p.desc}</p>
-            </motion.div>
-          ))}
+          {/* Prakriti — Landscape */}
+          <motion.div
+            className="p-8 border border-[#8B7355]/20 rounded-lg bg-[#F5F0E8]/60 hover:bg-[#F5F0E8] hover:border-[#B8860B]/40 transition-all duration-500 h-full"
+            initial={{ opacity: 0, y: 40 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <p className="text-3xl handwritten text-[#B8860B] mb-2">प्रकृति</p>
+            <h3 className="text-xl handwritten text-[#1a1a2e] mb-1">Prakriti</h3>
+            <p className="text-sm mono text-[#8B7355] tracking-wider mb-6">— The Landscape —</p>
+            <div className="h-24 mb-6 flex items-center justify-center">
+              <svg viewBox="0 0 100 60" className="w-full h-full">
+                <motion.path d="M 0 50 Q 25 20 50 35 T 100 25" fill="none" stroke="#B8860B" strokeWidth="1"
+                  initial={{ pathLength: 0 }} animate={isInView ? { pathLength: 1 } : {}} transition={{ duration: 2, delay: 0.5 }} />
+                <motion.path d="M 0 55 Q 25 30 50 45 T 100 35" fill="none" stroke="#8B7355" strokeWidth="0.5" opacity="0.5"
+                  initial={{ pathLength: 0 }} animate={isInView ? { pathLength: 1 } : {}} transition={{ duration: 2, delay: 0.7 }} />
+                <circle cx="25" cy="28" r="3" fill="#4A90D9" opacity="0.6" />
+                <circle cx="50" cy="38" r="3" fill="#D4A017" opacity="0.6" />
+                <circle cx="75" cy="30" r="3" fill="#6B7280" opacity="0.6" />
+              </svg>
+            </div>
+            <p className="text-[#4a4a5e] text-sm leading-relaxed">60 patterns carved into 10,000 dimensions by the rules of the Gita.</p>
+          </motion.div>
+
+          {/* Guna — Forces */}
+          <motion.div
+            className="p-8 border border-[#8B7355]/20 rounded-lg bg-[#F5F0E8]/60 hover:bg-[#F5F0E8] hover:border-[#B8860B]/40 transition-all duration-500 h-full"
+            initial={{ opacity: 0, y: 40 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.35 }}
+          >
+            <p className="text-3xl handwritten text-[#B8860B] mb-2">गुण</p>
+            <h3 className="text-xl handwritten text-[#1a1a2e] mb-1">Guna</h3>
+            <p className="text-sm mono text-[#8B7355] tracking-wider mb-6">— The Forces —</p>
+            <div className="h-24 mb-6 flex items-center justify-center">
+              <svg viewBox="0 0 100 60" className="w-full h-full">
+                <defs>
+                  <marker id="arrowup" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M 0 6 L 3 0 L 6 6" fill="#4A90D9" /></marker>
+                  <marker id="arrowright" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M 0 0 L 6 3 L 0 6" fill="#D4A017" /></marker>
+                  <marker id="arrowdown" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M 0 0 L 3 6 L 6 0" fill="#6B7280" /></marker>
+                </defs>
+                <motion.line x1="30" y1="50" x2="30" y2="20" stroke="#4A90D9" strokeWidth="2" markerEnd="url(#arrowup)"
+                  initial={{ pathLength: 0 }} animate={isInView ? { pathLength: 1 } : {}} transition={{ duration: 1, delay: 0.5 }} />
+                <motion.line x1="20" y1="40" x2="50" y2="40" stroke="#D4A017" strokeWidth="2" markerEnd="url(#arrowright)"
+                  initial={{ pathLength: 0 }} animate={isInView ? { pathLength: 1 } : {}} transition={{ duration: 1, delay: 0.7 }} />
+                <motion.line x1="70" y1="20" x2="70" y2="50" stroke="#6B7280" strokeWidth="2" markerEnd="url(#arrowdown)"
+                  initial={{ pathLength: 0 }} animate={isInView ? { pathLength: 1 } : {}} transition={{ duration: 1, delay: 0.9 }} />
+              </svg>
+            </div>
+            <p className="text-[#4a4a5e] text-sm leading-relaxed">Sattva lifts. Rajas drives. Tamas binds. Your answers set the direction.</p>
+          </motion.div>
+
+          {/* Gati — Trajectory */}
+          <motion.div
+            className="p-8 border border-[#8B7355]/20 rounded-lg bg-[#F5F0E8]/60 hover:bg-[#F5F0E8] hover:border-[#B8860B]/40 transition-all duration-500 h-full"
+            initial={{ opacity: 0, y: 40 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.5 }}
+          >
+            <p className="text-3xl handwritten text-[#B8860B] mb-2">गति</p>
+            <h3 className="text-xl handwritten text-[#1a1a2e] mb-1">Gati</h3>
+            <p className="text-sm mono text-[#8B7355] tracking-wider mb-6">— The Trajectory —</p>
+            <div className="h-24 mb-6 flex items-center justify-center">
+              <svg viewBox="0 0 100 60" className="w-full h-full">
+                <motion.path d="M 10 50 Q 30 45 40 30 T 70 25" fill="none" stroke="#00C9A7" strokeWidth="2" strokeDasharray="4,2"
+                  initial={{ pathLength: 0 }} animate={isInView ? { pathLength: 1 } : {}} transition={{ duration: 2, delay: 0.5 }} />
+                <motion.circle cx="70" cy="25" r="4" fill="#D4A017"
+                  initial={{ scale: 0 }} animate={isInView ? { scale: 1 } : {}} transition={{ delay: 2 }} />
+              </svg>
+            </div>
+            <p className="text-[#4a4a5e] text-sm leading-relaxed">The physics decides where you land. Not an algorithm. Not AI. Dynamics.</p>
+          </motion.div>
         </div>
       </div>
     </section>
@@ -345,13 +424,14 @@ function TerminalCTA() {
           <span className="text-[#B8860B]">Yours is waiting.</span>
         </motion.h2>
 
-        <motion.div className="inline-block" initial={{ opacity: 0, y: 20 }} animate={isInView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.8, delay: 0.4 }}>
-          <Link
-            href="/ask"
-            className="group relative inline-flex items-center gap-3 px-8 py-4 bg-[#1a1a2e] rounded mono text-[#00FF41] hover:bg-[#2a2a3e] transition-colors duration-300"
-          >
-            <span className="text-[#00AA2A]">$</span>
-            <span className="terminal-cursor">./compute --self</span>
+        <motion.div
+          className="flex justify-center"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={isInView ? { opacity: 1, scale: 1 } : {}}
+          transition={{ duration: 0.8, delay: 0.4, type: "spring" }}
+        >
+          <Link href="/ask" className="inline-block">
+            <WaxSeal size={350} />
           </Link>
         </motion.div>
 
@@ -396,7 +476,6 @@ export default function Home() {
       <VerseSection />
       <ComparisonSection />
       <PillarsSection />
-      <NotebookSection />
       <WhatItIsNot />
       <TerminalCTA />
       <Footer />
