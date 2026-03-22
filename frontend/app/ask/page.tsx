@@ -26,6 +26,83 @@ const TASKS = [
 const ACKS = ["I hear you.", "That makes sense.", "Got it.", "Staying with this.", "That takes honesty.", "This is real."];
 const BREATHS = ["Take a breath. This is heavy.", "You're doing something most people avoid — looking honestly.", "Almost there. The deepest questions come last."];
 
+const GITA_QUOTES = [
+  { sanskrit: "कर्मण्येवाधिकारस्ते मा फलेषु कदाचन", chapter: "2.47", hindi: "तुम्हारा अधिकार केवल कर्म करने में है, फल में कभी नहीं।", english: "You have the right to action alone, never to its fruits." },
+  { sanskrit: "योगस्थः कुरु कर्माणि सङ्गं त्यक्त्वा धनञ्जय", chapter: "2.48", hindi: "हे धनंजय, योग में स्थित होकर, आसक्ति त्यागकर कर्म करो।", english: "Perform actions established in yoga, abandoning attachment." },
+  { sanskrit: "नैनं छिन्दन्ति शस्त्राणि नैनं दहति पावकः", chapter: "2.23", hindi: "इस आत्मा को न शस्त्र काट सकते हैं, न अग्नि जला सकती है।", english: "Weapons cannot cut the soul, nor can fire burn it." },
+  { sanskrit: "उद्धरेदात्मनात्मानं नात्मानमवसादयेत्", chapter: "6.5", hindi: "अपने आप को स्वयं ऊपर उठाओ, अपने आप को गिरने मत दो।", english: "Elevate yourself by your own self. Do not degrade yourself." },
+  { sanskrit: "सर्वधर्मान्परित्यज्य मामेकं शरणं व्रज", chapter: "18.66", hindi: "सब धर्मों को त्यागकर मेरी शरण में आओ।", english: "Abandon all duties and surrender unto me alone." },
+  { sanskrit: "यदा यदा हि धर्मस्य ग्लानिर्भवति भारत", chapter: "4.7", hindi: "जब-जब धर्म की हानि और अधर्म की वृद्धि होती है, तब-तब मैं प्रकट होता हूँ।", english: "Whenever righteousness declines and unrighteousness rises, I manifest myself." },
+  { sanskrit: "मन एव मनुष्याणां कारणं बन्धमोक्षयोः", chapter: "6.5", hindi: "मन ही मनुष्य के बंधन और मोक्ष दोनों का कारण है।", english: "The mind alone is the cause of bondage and liberation." },
+  { sanskrit: "श्रेयान्स्वधर्मो विगुणः परधर्मात्स्वनुष्ठितात्", chapter: "3.35", hindi: "अपना गुणरहित धर्म भी दूसरे के अच्छे धर्म से श्रेष्ठ है।", english: "Better is one's own duty, though imperfect, than another's duty well performed." },
+  { sanskrit: "क्लैब्यं मा स्म गमः पार्थ नैतत्त्वय्युपपद्यते", chapter: "2.3", hindi: "हे पार्थ, कायरता को मत अपनाओ, यह तुम्हें शोभा नहीं देती।", english: "Do not yield to cowardice, O Partha. It does not befit you." },
+  { sanskrit: "समोऽहं सर्वभूतेषु न मे द्वेष्योऽस्ति न प्रियः", chapter: "9.29", hindi: "मैं सब प्राणियों में समान हूँ, न कोई मुझे अप्रिय है न प्रिय।", english: "I am equal to all beings. None is hateful or dear to me." },
+];
+
+function GitaQuotesLoader() {
+  const [quoteIdx, setQuoteIdx] = useState(() => Math.floor(Math.random() * GITA_QUOTES.length));
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setQuoteIdx((prev) => (prev + 1) % GITA_QUOTES.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const quote = GITA_QUOTES[quoteIdx];
+
+  return (
+    <div className="flex flex-col items-center justify-center py-24 min-h-[60vh]">
+      {/* Subtle pulsing dot to show it's alive */}
+      <motion.div
+        className="w-2 h-2 rounded-full bg-[#B8860B] mb-10"
+        animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.3, 1] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={quoteIdx}
+          className="text-center max-w-lg px-4"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+          transition={{ duration: 0.8, ease: "easeInOut" }}
+        >
+          {/* Sanskrit shloka */}
+          <p className="text-xl sm:text-2xl sanskrit-hand text-[#B8860B] leading-relaxed mb-3">
+            {quote.sanskrit}
+          </p>
+
+          {/* Chapter reference */}
+          <p className="text-[10px] mono text-[#8B7355]/60 tracking-widest mb-5">
+            — Bhagavad Gita {quote.chapter}
+          </p>
+
+          {/* Hindi meaning */}
+          <p className="text-sm text-[#4a4a5e] leading-relaxed mb-3 sanskrit-hand">
+            {quote.hindi}
+          </p>
+
+          {/* English meaning */}
+          <p className="text-sm text-[#8B7355] italic handwritten leading-relaxed">
+            {quote.english}
+          </p>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Bottom indicator */}
+      <motion.p
+        className="mt-12 text-[11px] text-[#8B7355]/50 mono tracking-wider"
+        animate={{ opacity: [0.3, 0.7, 0.3] }}
+        transition={{ duration: 3, repeat: Infinity }}
+      >
+        computing your trajectory...
+      </motion.p>
+    </div>
+  );
+}
+
 export default function AskPage() {
   const [text, setText] = useState("");
   const [step, setStep] = useState<"text" | "tasks" | "breath" | "running" | "result">("text");
@@ -259,42 +336,8 @@ export default function AskPage() {
           </AnimatePresence>
         )}
 
-        {/* ─── RUNNING (minimal) ─── */}
-        {step === "running" && (
-          <div className="flex flex-col items-center justify-center py-32">
-            <motion.div className="text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <div className="w-48 h-24 mx-auto mb-8">
-                <svg width="192" height="96" viewBox="0 0 192 96">
-                  <motion.path
-                    d="M 10 80 Q 50 20 96 48 T 182 30"
-                    fill="none"
-                    stroke="#FF6B00"
-                    strokeWidth="2"
-                    strokeDasharray="4,4"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 2, ease: "easeInOut" }}
-                  />
-                  <motion.circle
-                    r="4"
-                    fill="#FF6B00"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: [0, 1, 1, 0], offsetDistance: ["0%", "100%", "100%", "100%"] }}
-                    transition={{ duration: 3, times: [0, 0.7, 0.9, 1] }}
-                    style={{ offsetPath: "path('M 10 80 Q 50 20 96 48 T 182 30')" }}
-                  />
-                </svg>
-              </div>
-              <motion.p
-                className="text-[#1a1a1a] text-xl"
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                Computing your trajectory...
-              </motion.p>
-            </motion.div>
-          </div>
-        )}
+        {/* ─── RUNNING: Gita Quotes ─── */}
+        {step === "running" && <GitaQuotesLoader />}
 
         {/* ─── STEP 3: Result (MinimalWorkingPage design) ─── */}
         {step === "result" && trajectory && (
