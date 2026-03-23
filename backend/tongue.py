@@ -7,18 +7,17 @@ Two jobs:
 
 import json
 import os
-import google.generativeai as genai
+from google import genai
 from engine import ALL_ATOMS, ATOM_FEELINGS, PATTERN_MEANINGS
 
-_model = None
+_client = None
 
 
-def _get_model():
-    global _model
-    if _model is None:
-        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-        _model = genai.GenerativeModel("gemini-2.5-pro")
-    return _model
+def _get_client():
+    global _client
+    if _client is None:
+        _client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    return _client
 
 
 def parse_feelings(text: str) -> dict:
@@ -89,8 +88,8 @@ PERSON'S WORDS:
 Return ONLY valid JSON, no markdown:
 {{"weights": {{"ATOM_NAME": 0.0, ...}}, "ahankara_reason": "...", "maya_reason": "..."}}"""
 
-    model = _get_model()
-    response = model.generate_content(prompt)
+    client = _get_client()
+    response = client.models.generate_content(model="gemini-2.5-pro", contents=prompt)
     raw = response.text.strip()
 
     # Clean markdown fencing if present
@@ -225,6 +224,6 @@ RULES:
 - Do not use emojis
 - EVERY English paragraph MUST have a Hindi (Roman script) paragraph immediately after it"""
 
-    model = _get_model()
-    response = model.generate_content(prompt)
+    client = _get_client()
+    response = client.models.generate_content(model="gemini-2.5-pro", contents=prompt)
     return response.text.strip()
