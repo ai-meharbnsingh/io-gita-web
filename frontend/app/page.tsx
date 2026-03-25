@@ -433,6 +433,7 @@ function TerminalCTA() {
           <Link href="/ask" className="inline-block">
             <WaxSeal size={350} />
           </Link>
+          <p className="mt-3 text-sm text-[#B8860B] handwritten animate-pulse">↑ Click the seal to know your truth ↑</p>
         </motion.div>
 
         <motion.p className="mt-6 text-xs text-[#8B7355] mono" initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : {}} transition={{ delay: 0.6 }}>
@@ -457,7 +458,7 @@ function Footer() {
               Built by <span className="text-[#1a1a2e]">Meharban Singh</span>
             </p>
             <p className="text-xs text-[#8B7355] mono mt-1">
-              Powered by <span className="text-[#00C9A7]">Semantic Gravity</span>
+              Powered by <a href="https://www.adaptive-mind.com" target="_blank" rel="noopener noreferrer" className="text-[#00C9A7] hover:underline">Semantic Gravity</a>
             </p>
           </div>
         </div>
