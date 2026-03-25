@@ -53,6 +53,9 @@ function GitaQuotesLoader() {
 
   return (
     <div className="flex flex-col items-center justify-center py-24 min-h-[60vh]">
+      {/* Loading message */}
+      <p className="text-sm text-[#8B7355] handwritten mb-6">Results are loading, please wait...</p>
+
       {/* Subtle pulsing dot to show it's alive */}
       <motion.div
         className="w-2 h-2 rounded-full bg-[#B8860B] mb-10"
