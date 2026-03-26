@@ -78,6 +78,7 @@ class FeedbackRequest(BaseModel):
 # --- Endpoints ---
 
 @app.get("/health")
+@app.head("/health")
 def health():
     return {"status": "ok", "network": _net is not None}
 
