@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { gunaQuery, sendFeedback, type Trajectory } from "@/lib/api";
+import { track } from "@vercel/analytics";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
@@ -41,27 +42,49 @@ const GITA_QUOTES = [
 
 function GitaQuotesLoader() {
   const [quoteIdx, setQuoteIdx] = useState(() => Math.floor(Math.random() * GITA_QUOTES.length));
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const quoteInterval = setInterval(() => {
       setQuoteIdx((prev) => (prev + 1) % GITA_QUOTES.length);
     }, 5000);
-    return () => clearInterval(interval);
+    const timerInterval = setInterval(() => {
+      setElapsed((prev) => prev + 1);
+    }, 1000);
+    return () => { clearInterval(quoteInterval); clearInterval(timerInterval); };
   }, []);
 
   const quote = GITA_QUOTES[quoteIdx];
 
   return (
-    <div className="flex flex-col items-center justify-center py-24 min-h-[60vh]">
-      {/* Loading message */}
-      <p className="text-sm text-[#8B7355] handwritten mb-6">Results are loading, please wait...</p>
+    <div className="flex flex-col items-center justify-center py-16 min-h-[60vh]">
+      {/* Clear loading header */}
+      <div className="text-center mb-8 p-4 rounded-lg bg-[#FFFEF8] border border-[#B8860B]/20 max-w-md">
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <motion.div
+            className="w-3 h-3 rounded-full bg-[#B8860B]"
+            animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          />
+          <p className="text-base text-[#1a1a2e] handwritten font-medium">Your results are being computed...</p>
+        </div>
+        <p className="text-xs text-[#8B7355] mono">This may take 1-3 minutes — please stay on this page ({elapsed}s elapsed)</p>
+        {/* Progress bar */}
+        <div className="mt-3 h-1 rounded-full bg-[#E8E0D4] overflow-hidden">
+          <motion.div
+            className="h-full rounded-full bg-[#B8860B]"
+            animate={{ width: ["0%", "40%", "60%", "75%", "85%"] }}
+            transition={{ duration: 120, ease: "easeOut" }}
+          />
+        </div>
+      </div>
 
-      {/* Subtle pulsing dot to show it's alive */}
-      <motion.div
-        className="w-2 h-2 rounded-full bg-[#B8860B] mb-10"
-        animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.3, 1] }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-      />
+      {/* Divider */}
+      <div className="flex items-center gap-3 mb-8">
+        <div className="h-px w-12 bg-[#8B7355]/20" />
+        <p className="text-xs text-[#8B7355] mono tracking-wider">WHILE YOU WAIT — SOME GITA WISDOM</p>
+        <div className="h-px w-12 bg-[#8B7355]/20" />
+      </div>
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -94,14 +117,7 @@ function GitaQuotesLoader() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Bottom indicator */}
-      <motion.p
-        className="mt-12 text-[11px] text-[#8B7355]/50 mono tracking-wider"
-        animate={{ opacity: [0.3, 0.7, 0.3] }}
-        transition={{ duration: 3, repeat: Infinity }}
-      >
-        computing your trajectory...
-      </motion.p>
+      <p className="mt-10 text-[10px] text-[#8B7355]/40 mono">These verses are for reflection — your personal results will appear above when ready</p>
     </div>
   );
 }
@@ -109,7 +125,7 @@ function GitaQuotesLoader() {
 export default function AskPage() {
   const [text, setText] = useState("");
   const [step, setStep] = useState<"text" | "tasks" | "breath" | "running" | "result">("text");
-  const [answers, setAnswers] = useState<Record<string, Choice>>({});
+  const [answers, setAnswers] = useState<Record<string, Choice[]>>({});
   const [cur, setCur] = useState(0);
   const [showAck, setShowAck] = useState(false);
   const [ackText, setAckText] = useState("");
@@ -125,51 +141,78 @@ export default function AskPage() {
   const [fbSending, setFbSending] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   const handleDownloadPDF = async () => {
     if (!resultRef.current) return;
-    const canvas = await html2canvas(resultRef.current, {
-      scale: 2,
-      backgroundColor: "#F5F0E8",
-      useCORS: true,
-    });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const imgWidth = pageWidth - 20;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let y = 10;
-    const pageHeight = pdf.internal.pageSize.getHeight() - 20;
-    if (imgHeight <= pageHeight) {
-      pdf.addImage(imgData, "PNG", 10, y, imgWidth, imgHeight);
-    } else {
-      // Multi-page
-      let remaining = imgHeight;
-      let srcY = 0;
-      while (remaining > 0) {
-        const sliceH = Math.min(pageHeight, remaining);
-        const sliceCanvasH = (sliceH / imgHeight) * canvas.height;
-        const sliceCanvas = document.createElement("canvas");
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = sliceCanvasH;
-        const ctx = sliceCanvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(canvas, 0, srcY, canvas.width, sliceCanvasH, 0, 0, canvas.width, sliceCanvasH);
-          pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", 10, 10, imgWidth, sliceH);
+    setPdfLoading(true);
+    try {
+      const canvas = await html2canvas(resultRef.current, {
+        scale: 2,
+        backgroundColor: "#F5F0E8",
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        windowWidth: resultRef.current.scrollWidth,
+        windowHeight: resultRef.current.scrollHeight,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const imgWidth = pageWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pageHeight = pdf.internal.pageSize.getHeight() - 20;
+      if (imgHeight <= pageHeight) {
+        pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+      } else {
+        let remaining = imgHeight;
+        let srcY = 0;
+        while (remaining > 0) {
+          const sliceH = Math.min(pageHeight, remaining);
+          const sliceCanvasH = (sliceH / imgHeight) * canvas.height;
+          const sliceCanvas = document.createElement("canvas");
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = sliceCanvasH;
+          const ctx = sliceCanvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(canvas, 0, srcY, canvas.width, sliceCanvasH, 0, 0, canvas.width, sliceCanvasH);
+            pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", 10, 10, imgWidth, sliceH);
+          }
+          remaining -= sliceH;
+          srcY += sliceCanvasH;
+          if (remaining > 0) pdf.addPage();
         }
-        remaining -= sliceH;
-        srcY += sliceCanvasH;
-        if (remaining > 0) pdf.addPage();
       }
+      pdf.save("io-gita-result.pdf");
+      track("pdf_downloaded");
+    } catch (e) {
+      console.error("PDF generation failed:", e);
+      setError("PDF download failed — please try taking a screenshot instead");
+    } finally {
+      setPdfLoading(false);
     }
-    pdf.save("io-gita-result.pdf");
   };
 
   const task = TASKS[cur];
-  const allDone = Object.keys(answers).length === TASKS.length;
+  const allDone = Object.keys(answers).length === TASKS.length && Object.values(answers).every((a) => a.length > 0);
 
   const handleAnswer = (id: string, c: Choice) => {
-    const next = { ...answers, [id]: c };
-    setAnswers(next);
+    const current = answers[id] || [];
+    let updated: Choice[];
+    if (current.includes(c)) {
+      // Deselect — toggle off
+      updated = current.filter((x) => x !== c);
+    } else if (current.length >= 2) {
+      // Already 2 selected — replace oldest with new
+      updated = [current[1], c];
+    } else {
+      // Add selection
+      updated = [...current, c];
+    }
+    setAnswers({ ...answers, [id]: updated });
+  };
+
+  const advanceToNext = () => {
     setAckText(ACKS[Math.floor(Math.random() * ACKS.length)]);
     setShowAck(true);
     setTimeout(() => {
@@ -187,16 +230,29 @@ export default function AskPage() {
     }, 800);
   };
 
+  const handleSkip = (id: string) => {
+    // Set default answer AND advance in one go
+    setAnswers((prev) => ({ ...prev, [id]: ["R"] }));
+    advanceToNext();
+  };
+
   const handleRun = useCallback(async () => {
     if (!allDone) return;
     setStep("running");
     setError("");
     try {
-      const r = await gunaQuery(text, answers);
+      // Convert Choice[] to comma-joined strings for backend ("S" or "S,R")
+      const flatAnswers: Record<string, string> = {};
+      for (const [k, v] of Object.entries(answers)) {
+        flatAnswers[k] = v.join(",");
+      }
+      console.log("Sending to backend:", { text: text.slice(0, 50), answers: flatAnswers });
+      const r = await gunaQuery(text, flatAnswers);
       setTrajectory(r.trajectory);
       setNarration(r.narration);
       setEntropyText(r.entropy_text);
       setStep("result");
+      track("result_viewed", { pattern: r.trajectory?.final_display || "unknown" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
       setStep("tasks");
@@ -216,7 +272,7 @@ export default function AskPage() {
       <nav className="border-b border-[#8B7355]/20 px-6 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <Link href="/" className="text-sm handwritten" style={{ color: "#B8860B" }}>io-gita</Link>
-          <span className="text-[10px] text-[#8B7355] mono">topology, not prophecy</span>
+          <span className="text-[10px] text-[#8B7355] mono">a mirror, not a prediction</span>
         </div>
       </nav>
 
@@ -235,10 +291,34 @@ export default function AskPage() {
               rows={5}
               className="w-full p-4 rounded-lg text-sm leading-relaxed resize-none outline-none bg-[#FFFEF8] border border-[#8B7355]/20 text-[#1a1a2e] placeholder-[#8B7355]/40 handwritten"
             />
+
+            {/* Example questions */}
+            {!text.trim() && (
+              <div className="mt-4 mb-2">
+                <p className="text-[10px] text-[#8B7355] mono mb-2">NOT SURE WHAT TO WRITE? TRY ONE OF THESE:</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    "I can't decide whether to leave my job or stay",
+                    "My family wants one thing, my heart wants another",
+                    "I keep starting things but never finish them",
+                    "I feel stuck and don't know why",
+                  ].map((example) => (
+                    <button
+                      key={example}
+                      onClick={() => setText(example)}
+                      className="text-xs px-3 py-1.5 rounded-full border border-[#8B7355]/20 text-[#8B7355] hover:bg-[#B8860B]/10 hover:border-[#B8860B]/40 hover:text-[#B8860B] transition-all cursor-pointer handwritten"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between mt-4">
               <p className="text-[10px] text-[#8B7355] mono">11 gentle prompts · 3 minutes · no wrong answers</p>
               <button
-                onClick={() => { if (text.trim().length >= 5) setStep("tasks"); }}
+                onClick={() => { if (text.trim().length >= 5) { track("question_started"); setStep("tasks"); } }}
                 disabled={text.trim().length < 5}
                 className="px-8 py-2.5 rounded-full text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer bg-[#8B2332] text-[#F5F0E8] hover:bg-[#A52A2A] shadow-md handwritten tracking-wide"
               >
@@ -265,14 +345,17 @@ export default function AskPage() {
               {/* Progress */}
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2">
-                  {TASKS.map((_, i) => (
-                    <div key={i} className="rounded-full transition-all duration-500" style={{
-                      width: 8,
-                      height: 8,
-                      background: answers[TASKS[i]?.id] ? "#B8860B" : i === cur ? "#8B7355" : "transparent",
-                      border: i === cur ? "2px solid #8B7355" : answers[TASKS[i]?.id] ? "2px solid #B8860B" : "2px solid #D4C9B8",
-                    }} />
-                  ))}
+                  {TASKS.map((_, i) => {
+                    const answered = (answers[TASKS[i]?.id] || []).length > 0;
+                    return (
+                      <div key={i} className="rounded-full transition-all duration-500" style={{
+                        width: 8,
+                        height: 8,
+                        background: answered ? "#B8860B" : i === cur ? "#8B7355" : "transparent",
+                        border: i === cur ? "2px solid #8B7355" : answered ? "2px solid #B8860B" : "2px solid #D4C9B8",
+                      }} />
+                    );
+                  })}
                 </div>
                 <span className="text-xs text-[#8B7355] mono">{cur + 1}/{TASKS.length}</span>
               </div>
@@ -297,10 +380,12 @@ export default function AskPage() {
                 </div>
               )}
 
-              {/* Answers */}
+              {/* Answers — multi-select up to 2 with checkboxes */}
               <div className="space-y-3 mt-6">
+                <p className="text-[10px] text-[#8B7355]/60 mono text-center mb-1">pick one, or two if both feel true</p>
                 {(["S", "R", "T"] as const).map((k) => {
-                  const sel = answers[task.id] === k;
+                  const selections = answers[task.id] || [];
+                  const sel = selections.includes(k);
                   return (
                     <motion.button
                       key={k}
@@ -316,14 +401,36 @@ export default function AskPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.05 * ["S", "R", "T"].indexOf(k) }}
                     >
-                      {task.options[k]}
+                      <span className="flex items-center gap-3">
+                        <span className="w-5 h-5 rounded border-2 shrink-0 flex items-center justify-center transition-colors" style={{ borderColor: sel ? "#B8860B" : "#D4C9B8", background: sel ? "#B8860B" : "transparent" }}>
+                          {sel && (
+                            <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M2 6l3 3 5-5" />
+                            </svg>
+                          )}
+                        </span>
+                        {task.options[k]}
+                      </span>
                     </motion.button>
                   );
                 })}
 
-                <button onClick={() => handleAnswer(task.id, "R")} disabled={showAck} className="w-full text-center py-3 text-sm text-[#8B7355]/60 hover:text-[#8B7355] cursor-pointer handwritten transition-colors">
-                  none of these fit — skip
-                </button>
+                {/* Next / Skip buttons */}
+                <div className="flex items-center justify-between pt-2">
+                  <button onClick={() => handleSkip(task.id)} disabled={showAck} className="text-sm text-[#8B7355]/60 hover:text-[#8B7355] cursor-pointer handwritten transition-colors">
+                    skip this one
+                  </button>
+                  {(answers[task.id] || []).length > 0 && !showAck && (
+                    <motion.button
+                      onClick={advanceToNext}
+                      className="px-6 py-2 rounded-full text-sm cursor-pointer bg-[#8B2332] text-[#F5F0E8] hover:bg-[#A52A2A] shadow-md handwritten tracking-wide transition-colors"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                    >
+                      Next
+                    </motion.button>
+                  )}
+                </div>
               </div>
 
               {/* Run button */}
@@ -356,16 +463,16 @@ export default function AskPage() {
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
                   <span className="text-sm sans">Again</span>
                 </button>
-                <button onClick={handleDownloadPDF} className="flex items-center gap-2 text-[#6b6b6b] hover:text-[#1a1a2e] transition-colors">
+                <button onClick={handleDownloadPDF} disabled={pdfLoading} className="flex items-center gap-2 text-[#6b6b6b] hover:text-[#1a1a2e] transition-colors disabled:opacity-50">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-                  <span className="text-sm sans">PDF</span>
+                  <span className="text-sm sans">{pdfLoading ? "Generating..." : "PDF"}</span>
                 </button>
               </div>
             </div>
 
             <div ref={resultRef}>
             {/* YOUR PATTERN label */}
-            <p className="text-xs text-[#9b9b9b] sans tracking-wider mb-4">YOUR PATTERN</p>
+            <p className="text-xs text-[#9b9b9b] sans tracking-wider mb-4">WHAT WE FOUND</p>
 
             {/* Pattern name — large elegant */}
             <h2 className="text-4xl sm:text-5xl heading-elegant text-[#1a1a2e] mb-2">
@@ -395,20 +502,22 @@ export default function AskPage() {
               </svg>
             </div>
 
-            {/* Description / entropy */}
-            <p className="text-[#6b6b6b] leading-relaxed mb-10 text-lg">
-              {entropyText || trajectory.final_meaning || ""}
-            </p>
+            {/* Simple one-line meaning */}
+            {trajectory.final_meaning && (
+              <p className="text-[#6b6b6b] leading-relaxed mb-10 text-lg">
+                {trajectory.final_meaning}
+              </p>
+            )}
 
-            {/* Three cards — What Drives / Where Forces Lead / Path Through */}
+            {/* Three cards — What Drives / Where This Leads / What You Can Do */}
             {(() => {
               const sections = narration ? narration.split(/^## /m).filter((s) => s.trim()) : [];
               const cardColors = ["#4A90D9", "#FF6B00", "#00C9A7"];
-              const cardTitles = ["What Drives You", "Where Forces Lead", "The Path Through"];
+              const cardTitles = ["What's Really Driving You", "Where This Leads", "What You Can Do"];
               const cardDefaults = [
-                "Your trajectory reveals the dominant forces shaping your consciousness.",
-                "Your current convergence point in the attractor landscape.",
-                "Understanding your topology is the first step toward evolution.",
+                "Your answers reveal the forces that are shaping how you feel right now.",
+                "This is where your current inner patterns are taking you.",
+                "Small, specific steps you can take today.",
               ];
               return (
                 <div className="space-y-4 mb-10">
@@ -417,8 +526,10 @@ export default function AskPage() {
                     let body = cardDefaults[i];
                     if (section) {
                       const lines = section.trim().split("\n");
-                      body = lines.slice(1).join(" ").trim() || cardDefaults[i];
+                      body = lines.slice(1).join("\n").trim() || cardDefaults[i];
                     }
+                    // Split into English and Hindi (Hindi is wrapped in * markers)
+                    const parts = body.split(/(\*[^*]+\*)/g).filter(Boolean);
                     return (
                       <motion.div
                         key={i}
@@ -427,10 +538,24 @@ export default function AskPage() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 + i * 0.15 }}
                       >
-                        <h3 className="sans font-medium mb-1" style={{ color: cardColors[i] }}>{title}</h3>
-                        <p className="text-sm text-[#6b6b6b] leading-relaxed">
-                          {body.replace(/\*/g, "")}
-                        </p>
+                        <h3 className="sans font-medium mb-3" style={{ color: cardColors[i] }}>{title}</h3>
+                        <div className="space-y-3">
+                          {parts.map((part, j) => {
+                            const isHindi = part.startsWith("*") && part.endsWith("*");
+                            if (isHindi) {
+                              return (
+                                <p key={j} className="text-sm sanskrit-hand text-[#8B7355] leading-relaxed pl-3 border-l-2 border-[#B8860B]/30">
+                                  {part.slice(1, -1)}
+                                </p>
+                              );
+                            }
+                            return (
+                              <p key={j} className="text-sm text-[#4a4a5e] leading-relaxed">
+                                {part.trim()}
+                              </p>
+                            );
+                          })}
+                        </div>
                       </motion.div>
                     );
                   })}
@@ -440,7 +565,7 @@ export default function AskPage() {
 
             {/* Journey bar chart */}
             <div className="mb-8">
-              <p className="text-xs text-[#9b9b9b] sans tracking-wider mb-3">JOURNEY ({trajectory.total_steps} steps)</p>
+              <p className="text-xs text-[#9b9b9b] sans tracking-wider mb-3">YOUR MIND'S JOURNEY</p>
               <div className="space-y-1.5">
                 {trajectory.phases.filter((p) => p.duration >= 5).map((p, i) => {
                   const max = Math.max(...trajectory.phases.filter((x) => x.duration >= 5).map((x) => x.duration));
@@ -456,30 +581,43 @@ export default function AskPage() {
               </div>
             </div>
 
-            {/* Forces won */}
+            {/* Forces — what's strongest in you */}
             <div className="mb-8">
-              <p className="text-xs text-[#9b9b9b] sans tracking-wider mb-3">WHICH FORCES WON</p>
-              <div className="space-y-1.5">
-                {Object.entries(trajectory.atom_alignments).slice(0, 8).map(([, info]) => (
-                  <div key={info.feeling} className="flex items-center gap-2 text-xs p-2 rounded minimal-card">
-                    <span className="text-[#4a4a5e] w-36 shrink-0 truncate text-[11px] handwritten">{info.feeling.split("\u2014")[0].trim()}</span>
-                    <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-[#E8E0D4]">
-                      <div className="h-full rounded-full" style={{ width: `${Math.abs(info.final) * 100}%`, background: info.grew ? "#FF6B00" : "#8B7355" }} />
+              <p className="text-xs text-[#9b9b9b] sans tracking-wider mb-2">WHAT'S STRONGEST IN YOU</p>
+              <p className="text-xs text-[#8B7355] mb-4">These are the inner forces that shaped your answer. The ones that grew are quietly steering you.</p>
+              <div className="space-y-2">
+                {Object.entries(trajectory.atom_alignments).slice(0, 8).map(([, info]) => {
+                  const parts = info.feeling.split("\u2014");
+                  const name = parts[0].trim();
+                  const explanation = parts.length > 1 ? parts[1].trim() : "";
+                  return (
+                    <div key={info.feeling} className="p-3 rounded minimal-card">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[#1a1a2e] text-sm font-medium handwritten">{name}</span>
+                        {info.grew ? (
+                          <span className="text-[9px] font-medium text-[#FF6B00] mono px-1.5 py-0.5 rounded-full bg-[#FF6B00]/10">getting stronger</span>
+                        ) : (
+                          <span className="text-[9px] text-[#8B7355] mono px-1.5 py-0.5 rounded-full bg-[#8B7355]/10">fading</span>
+                        )}
+                      </div>
+                      {explanation && <p className="text-[11px] text-[#8B7355] mb-2">{explanation}</p>}
+                      <div className="h-1.5 rounded-full overflow-hidden bg-[#E8E0D4]">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(8, Math.abs(info.final) * 100)}%`, background: info.grew ? "#FF6B00" : "#8B7355" }} />
+                      </div>
                     </div>
-                    {info.grew && <span className="text-[9px] font-medium text-[#FF6B00] mono">grew</span>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            {/* Settlement */}
+            {/* Where you are right now */}
             <div className="p-5 rounded-lg text-center mb-8" style={{ background: "rgba(255, 107, 0, 0.04)", border: "1px solid rgba(255, 107, 0, 0.15)" }}>
-              <p className="text-xs text-[#9b9b9b] sans tracking-wider mb-1">SETTLED AT</p>
+              <p className="text-xs text-[#9b9b9b] sans tracking-wider mb-1">WHERE YOU ARE RIGHT NOW</p>
               <p className="text-2xl heading-elegant text-[#FF6B00]">{trajectory.final_display || trajectory.final_basin}</p>
               {trajectory.final_meaning && <p className="text-sm text-[#8B7355] mt-1">{trajectory.final_meaning}</p>}
             </div>
 
-            <p className="text-[10px] text-[#9b9b9b] text-center sans mb-8">topology, not prophecy · same forces, same place, every time</p>
+            <p className="text-[10px] text-[#9b9b9b] text-center sans mb-8">this is not prediction — the same inner forces always lead to the same place</p>
             </div>{/* end resultRef */}
 
             {/* Feedback */}
@@ -496,7 +634,7 @@ export default function AskPage() {
                   <textarea placeholder="Did the result resonate? What surprised you?" value={fbMsg} onChange={(e) => setFbMsg(e.target.value)} rows={3}
                     className="w-full px-3 py-2 rounded text-xs outline-none resize-none bg-[#F5F0E8] border border-[#8B7355]/20 text-[#1a1a2e]" />
                   <button
-                    onClick={async () => { if (!fbMsg.trim()) return; setFbSending(true); try { await sendFeedback({ name: fbName, email: fbEmail, message: fbMsg, query: text }); setFbSent(true); } catch { setError("Feedback failed"); } finally { setFbSending(false); } }}
+                    onClick={async () => { if (!fbMsg.trim()) return; setFbSending(true); try { await sendFeedback({ name: fbName, email: fbEmail, message: fbMsg, query: text }); setFbSent(true); track("feedback_sent"); } catch { setError("Feedback failed"); } finally { setFbSending(false); } }}
                     disabled={!fbMsg.trim() || fbSending}
                     className="px-6 py-2 rounded-full text-xs transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer bg-[#1a1a1a] text-white hover:bg-[#333] sans">
                     {fbSending ? "Sending..." : "Send feedback"}

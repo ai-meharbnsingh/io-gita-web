@@ -347,16 +347,21 @@ def guna_to_atoms(answers: dict) -> dict:
 
     counts = {"S": 0, "R": 0, "T": 0}
 
-    # Accumulate into separate channels
+    # Accumulate into separate channels (supports multi-select: "S,R" etc.)
     for domain in DOMAINS:
         did = domain["id"]
-        choice = answers.get(did)
-        if choice not in ("S", "R", "T"):
+        raw_choice = answers.get(did)
+        if not raw_choice:
             continue
-        counts[choice] += 1
-        target = {"S": atoms_s, "R": atoms_r, "T": atoms_t}[choice]
-        for atom, weight in domain["atom_weights"][choice].items():
-            target[atom] += weight
+        choices = [c for c in raw_choice.split(",") if c in ("S", "R", "T")]
+        if not choices:
+            continue
+        frac = 1.0 / len(choices)  # split weight equally across selections
+        for choice in choices:
+            counts[choice] += frac
+            target = {"S": atoms_s, "R": atoms_r, "T": atoms_t}[choice]
+            for atom, weight in domain["atom_weights"][choice].items():
+                target[atom] += weight * frac
 
     # L2-normalize each channel independently
     def l2_normalize(vec):
@@ -428,9 +433,13 @@ def guna_to_alpha(answers: dict) -> float:
     """
     counts = {"S": 0, "R": 0, "T": 0}
     for domain in DOMAINS:
-        choice = answers.get(domain["id"])
-        if choice in counts:
-            counts[choice] += 1
+        raw_choice = answers.get(domain["id"])
+        if not raw_choice:
+            continue
+        choices = [c for c in raw_choice.split(",") if c in ("S", "R", "T")]
+        frac = 1.0 / len(choices) if choices else 0
+        for choice in choices:
+            counts[choice] += frac
 
     total = sum(counts.values()) or 1
     s_ratio = counts["S"] / total

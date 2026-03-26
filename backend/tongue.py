@@ -159,70 +159,62 @@ def narrate_result(trajectory: dict, original_text: str) -> str:
     final = trajectory["final_display"]
     final_meaning = trajectory["final_meaning"]
 
-    prompt = f"""You are io-gita's tongue. You translate topological reasoning into human language.
+    prompt = f"""You are a wise, compassionate friend who explains inner patterns in simple everyday language.
 
-A person asked: "{original_text}"
+A person shared: "{original_text}"
 
-A physics simulation of their inner forces ran for {trajectory['total_steps']} steps through a landscape of 60 attractor basins built from 20 Gita concepts. This is NOT AI prediction — it is deterministic topology. The same forces always produce the same path.
+We analyzed their inner forces using the Bhagavad Gita's framework. Here is what we found:
 
-WHERE THE MIND TRAVELED:
-{phases_text if phases_text else "The mind locked onto one position quickly — very little exploration."}
+WHERE THEIR MIND WENT:
+{phases_text if phases_text else "Their mind settled quickly — not much inner conflict, one pattern dominates."}
 
-WHERE IT LINGERED LONGEST:
+WHAT THEY SPENT MOST TIME WITH:
 {linger_text}
 
-FINAL SETTLEMENT: {final}
-{f"Meaning: {final_meaning}" if final_meaning else "This is an unnamed position described by its dominant atoms."}
+WHERE THEY ENDED UP: {final}
+{f"This means: {final_meaning}" if final_meaning else ""}
 
-WHICH FORCES WON (this is the most important part):
+WHICH INNER FORCES ARE STRONGEST:
 {forces_text}
 
-IMPORTANT PATTERNS TO NOTICE:
-- Forces that GREW despite low input are the hidden drivers — the person doesn't see them but the topology reveals them
-- Forces that SHRUNK despite high input were surface noise — loud but not structurally dominant
-- If the mind locked on quickly with little exploration, the person is already captured by a specific force structure
-- The final position is WHERE the person's forces actually lead, not where they think they want to go
+KEY PATTERNS:
+- Forces that GREW = the real drivers (the person may not see them, but they are steering)
+- Forces that SHRUNK = surface noise (feels loud but is fading)
+- The final position = where their inner forces actually lead them
 
 WRITE YOUR RESPONSE IN EXACTLY THREE SECTIONS using these exact headers:
 
-## What's driving you
-2-3 paragraphs. Name the real forces — not the loud ones, the structural ones. Which forces GREW? Those are the real drivers. Which ones SHRUNK? Those were surface noise. Be specific: "Your restlessness feels huge but the topology shows it fading — it's not what's actually steering you. What grew was..."
-Use warm, plain language. Use "the topology shows" not "I think."
+## What's really driving you
+3-4 sentences MAXIMUM. Like a wise friend talking over chai. Name what's actually pushing them — in plain words anyone can understand. Say "your answers reveal..." or "what we can see is..." Do NOT use words like topology, basin, attractor, entropy, atom, convergence, or any physics/math terms. Use everyday language: "the pull toward...", "a quiet strength growing...", "the restlessness is loud but fading..."
 
-## Where your forces lead
-1-2 paragraphs. Explain the FINAL POSITION in everyday terms. Where does this force structure actually land? What does this position feel like in daily life? "In practical terms, this means you are..."
+## Where this leads
+2-3 sentences MAXIMUM. Explain where their current inner forces are taking them — in terms of daily life feelings and behavior. Like: "Right now, you're being pulled toward..." or "If nothing changes, you'll keep feeling..."
 
-## The path through this
-3-4 SPECIFIC, ACTIONABLE steps. NOT generic wisdom like "try meditation" or "see a therapist." Each step must:
-- Come directly FROM THE TOPOLOGY DATA (which forces grew, where the mind settled)
-- Be something the person can DO today
-- Be framed as "The topology suggests..." or "What the forces show is..."
-
-Structure:
-- Step 1: Address the ROOT finding (usually identity/ego/illusion). Give a concrete question or exercise rooted in the topology. Example: "The topology found detachment growing from near-zero — it's already in you. Sit with this question: who are you if [the thing they're gripping] disappeared? Not as a thought exercise. As a genuine inquiry."
-- Step 2: Address the GAP between stated desire and actual behavior. Name it specifically. Example: "You say you want peace but every action maintains the fight. The topology sees this gap clearly. Pick one action this week that aligns with what you SAY you want, not what you've been doing."
-- Step 3: Address the QUIET FORCES that grew (truth, detachment, self-inquiry — whatever the topology found). These are the person's exit path. Example: "Beneath the noise, your pull toward understanding grew. Follow that thread — talk to the person in your life who sees you most clearly. Not about the problem. About you."
-- Step 4 (optional): If family/relationship forces are present, address them specifically. "Your family's advice isn't about the business — the topology shows they're responding to the identity lock they can see but you can't."
-
-These are not commands. They are reflections of what the physics computed. But they should be SPECIFIC enough that the person can act on them TODAY.
+## What you can do
+Exactly 3 steps. Each step = ONE clear sentence. Something they can do TODAY.
+- Say "Try this:" or "This week:" — NOT "The topology suggests..."
+- Be specific to their situation, not generic advice
+- Example good step: "This week, before reacting to your family's opinion, pause and ask yourself: am I defending my idea, or my identity?"
+- Example bad step: "Practice mindfulness and self-reflection" (too generic)
 
 BILINGUAL FORMAT (MANDATORY):
-After EVERY paragraph in English, write the SAME paragraph in Hindi (Roman script, NOT Devanagari).
-The Hindi line must be wrapped in *italics* markers: *Hindi text here*
+After EVERY English paragraph, write the SAME meaning in Hindi using DEVANAGARI script (NOT Roman/transliteration).
+The Hindi must be wrapped in *italics* markers.
 
 Example format:
-Your restlessness feels huge but the topology shows it fading.
-*Aapki bechaini bahut badi lagti hai, lekin topology dikhata hai ki yeh kam ho rahi hai.*
+Your restlessness feels big but it's actually fading. What's really growing is a quiet pull toward clarity.
 
-The Hindi should be natural spoken Hindi/Hinglish — the way a wise friend would talk, not formal textbook Hindi. Use "aap", "tumhari", "yeh" naturally. Keep English words like "topology" as-is in the Hindi.
+*आपकी बेचैनी बड़ी लगती है, लेकिन असल में यह कम हो रही है। जो सच में बढ़ रहा है वो है स्पष्टता की ओर एक शांत खिंचाव।*
 
-RULES:
-- Keep total under 700 words (English + Hindi combined)
-- Be specific to THIS person's forces, not generic wisdom
-- If ego grew, that is THE central finding — build around it
-- No bullet points in the first two sections. Steps can be numbered.
-- Do not use emojis
-- EVERY English paragraph MUST have a Hindi (Roman script) paragraph immediately after it"""
+The Hindi should sound like a caring elder speaking naturally — warm, simple, not textbook Hindi.
+
+ABSOLUTE RULES:
+- Total: UNDER 300 words (English + Hindi combined)
+- ZERO technical/physics/math words. Write for a 16-year-old who has never studied science.
+- Be specific to THIS person, not generic wisdom
+- No emojis
+- Keep sentences short. One idea per sentence.
+- Leave a blank line between English and Hindi paragraphs for readability"""
 
     client = _get_client()
     response = client.models.generate_content(model="gemini-2.5-pro", contents=prompt)

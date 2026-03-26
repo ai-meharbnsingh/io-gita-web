@@ -66,12 +66,21 @@ function HeroSection() {
           The newest physics to read it.&rdquo;
         </motion.p>
 
-        <motion.p className="mt-12 text-xs text-[#8B7355] mono" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3 }}>
-          Based on Bhagavad Gita Chapter 18 · 10,000-dimensional Hopfield networks
+        <motion.div className="mt-10" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }}>
+          <Link href="/ask">
+            <button className="px-10 py-4 rounded-full text-lg cursor-pointer bg-[#8B2332] text-[#F5F0E8] hover:bg-[#A52A2A] shadow-lg transition-all handwritten tracking-wide hover:scale-105">
+              See My Inner Forces
+            </button>
+          </Link>
+        </motion.div>
+
+        <motion.p className="mt-6 text-xs text-[#8B7355] mono" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }}>
+          11 questions · 3 minutes · completely free
         </motion.p>
       </div>
 
       <motion.div className="absolute bottom-8 left-1/2 -translate-x-1/2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2 }}>
+        <p className="text-xs text-[#8B7355] mono mb-2">scroll to learn more</p>
         <div className="scroll-hint text-[#8B7355]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
             <path d="M12 5v14M5 12l7 7 7-7" />
@@ -159,7 +168,7 @@ function VerseSection() {
             transition={{ delay: 1.2 }}
           >
             <p className="text-[10px] text-[#8B7355] handwritten" style={{ transform: "rotate(3deg)" }}>
-              * The Rishis observed what physics now confirms: consciousness has topology
+              * The Rishis observed what physics now confirms: consciousness has a pattern
             </p>
           </motion.div>
         </motion.div>
@@ -419,25 +428,29 @@ function TerminalCTA() {
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          Every consciousness has a topology.
+          Every consciousness has a pattern.
           <br />
           <span className="text-[#B8860B]">Yours is waiting.</span>
         </motion.h2>
 
         <motion.div
-          className="flex justify-center"
+          className="flex flex-col items-center"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={isInView ? { opacity: 1, scale: 1 } : {}}
           transition={{ duration: 0.8, delay: 0.4, type: "spring" }}
         >
           <Link href="/ask" className="inline-block">
-            <WaxSeal size={350} />
+            <WaxSeal size={280} />
           </Link>
-          <p className="mt-3 text-sm text-[#B8860B] handwritten animate-pulse">↑ Click the seal to know your truth ↑</p>
+          <Link href="/ask" className="mt-6 inline-block">
+            <button className="px-10 py-4 rounded-full text-lg cursor-pointer bg-[#8B2332] text-[#F5F0E8] hover:bg-[#A52A2A] shadow-lg transition-all handwritten tracking-wide hover:scale-105">
+              Start Now — It&apos;s Free
+            </button>
+          </Link>
         </motion.div>
 
         <motion.p className="mt-6 text-xs text-[#8B7355] mono" initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : {}} transition={{ delay: 0.6 }}>
-          11 questions · 10,000 dimensions · 22 possible patterns
+          11 questions · 3 minutes · 22 possible patterns
         </motion.p>
       </div>
     </section>

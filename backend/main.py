@@ -177,13 +177,15 @@ def guna_query(req: GunaQueryRequest):
     if _net is None:
         raise HTTPException(status_code=503, detail="Network not ready")
 
-    # Validate answers
+    # Validate answers (supports multi-select: "S", "R", "T", "S,R", "S,T", "R,T")
     valid_ids = {d["id"] for d in get_domain_questions()}
     for did, choice in req.answers.items():
         if did not in valid_ids:
             raise HTTPException(status_code=400, detail=f"Unknown domain: {did}")
-        if choice not in ("S", "R", "T"):
-            raise HTTPException(status_code=400, detail=f"Invalid choice for {did}: {choice}")
+        parts = choice.split(",")
+        for p in parts:
+            if p not in ("S", "R", "T"):
+                raise HTTPException(status_code=400, detail=f"Invalid choice for {did}: {choice}")
 
     if len(req.answers) < 11:
         raise HTTPException(status_code=400, detail=f"Need 11 answers, got {len(req.answers)}")

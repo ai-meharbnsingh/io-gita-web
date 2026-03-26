@@ -130,7 +130,10 @@ export async function gunaQuery(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, answers }),
   });
-  if (!res.ok) throw new Error(`Guna query failed: ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    throw new Error(`Guna query failed (${res.status}): ${errBody}`);
+  }
   return res.json();
 }
 
