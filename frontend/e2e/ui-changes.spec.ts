@@ -76,21 +76,24 @@ test.describe('UI Changes E2E — 3 Cases', () => {
     const progressDots = page.locator('.rounded-full').first();
     await expect(progressDots).toBeVisible();
 
-    // Answer all 11 questions (click first option each time)
-    // Breath pauses (3s) happen between groups, ack delay is 800ms
+    // Answer all 11 questions: select option then click Next
     for (let i = 0; i < 11; i++) {
-      // Wait for the question option to appear (accounts for breath pauses)
       const options = page.locator('button.w-full.text-left');
       await expect(options.first()).toBeVisible({ timeout: 8000 });
       await options.first().click();
-      await page.waitForTimeout(1500); // wait for ack + transition + possible breath
-      // Screenshot every 4th question
+      await page.waitForTimeout(500);
+      // Click "Next" to advance (last question won't have Next if allDone shows Reveal)
+      const nextBtn = page.locator('button:has-text("Next")');
+      if (await nextBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await nextBtn.click();
+        await page.waitForTimeout(1500); // ack + breath pause
+      }
       if (i % 4 === 0) {
         await page.screenshot({ path: `screenshots/e2e/case2-05-question-${i + 1}.png` });
       }
     }
 
-    // "Reveal My Truth" button should appear (may need extra wait after last ack)
+    // "Reveal My Truth" button should appear
     const revealBtn = page.locator('button:has-text("Reveal My Truth")');
     await expect(revealBtn).toBeVisible({ timeout: 10000 });
     await page.screenshot({ path: 'screenshots/e2e/case2-06-all-answered.png' });
@@ -169,12 +172,17 @@ test.describe('UI Changes E2E — 3 Cases', () => {
     await page.click('button:has-text("Continue")');
     await page.waitForTimeout(1000);
 
-    // Answer all 11 questions (wait for each to appear due to breath pauses)
+    // Answer all 11 questions: select + Next
     for (let i = 0; i < 11; i++) {
       const options = page.locator('button.w-full.text-left');
       await expect(options.first()).toBeVisible({ timeout: 8000 });
       await options.first().click();
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(500);
+      const nextBtn = page.locator('button:has-text("Next")');
+      if (await nextBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await nextBtn.click();
+        await page.waitForTimeout(1500);
+      }
     }
 
     // Click reveal
