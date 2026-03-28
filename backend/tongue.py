@@ -3,21 +3,70 @@
 Two jobs:
 1. Parse: human language -> atom weights (what the person is feeling)
 2. Narrate: trajectory data -> plain language interpretation
+
+Key rotation: set GEMINI_API_KEYS=key1,key2,key3 in .env for multiple keys.
+Falls back to single GEMINI_API_KEY if GEMINI_API_KEYS is not set.
+Model fallback: gemini-2.5-pro -> gemini-2.5-flash on rate limits.
 """
 
 import json
+import logging
 import os
+import time
 from google import genai
 from engine import ALL_ATOMS, ATOM_FEELINGS, PATTERN_MEANINGS
 
-_client = None
+logger = logging.getLogger(__name__)
+
+_clients: list = []
+_current_key_idx = 0
+_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash"]
 
 
-def _get_client():
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    return _client
+def _init_clients():
+    global _clients
+    if _clients:
+        return
+    keys_str = os.environ.get("GEMINI_API_KEYS", os.environ.get("GEMINI_API_KEY", ""))
+    keys = [k.strip() for k in keys_str.split(",") if k.strip()]
+    if not keys:
+        raise RuntimeError("No Gemini API keys. Set GEMINI_API_KEYS or GEMINI_API_KEY in .env")
+    _clients = [genai.Client(api_key=k) for k in keys]
+    logger.info(f"Initialized {len(_clients)} Gemini API key(s)")
+
+
+def _is_rate_limit(e: Exception) -> bool:
+    err = str(e).lower()
+    return any(s in err for s in ("429", "resource exhausted", "rate limit", "quota"))
+
+
+def _call_gemini(prompt: str) -> str:
+    """Call Gemini with key rotation and Pro -> Flash fallback."""
+    _init_clients()
+    global _current_key_idx
+    n_keys = len(_clients)
+
+    for model in _MODELS:
+        keys_tried = 0
+        while keys_tried < n_keys:
+            client = _clients[_current_key_idx]
+            try:
+                response = client.models.generate_content(model=model, contents=prompt)
+                return response.text.strip()
+            except Exception as e:
+                if _is_rate_limit(e):
+                    logger.warning(
+                        f"Rate limit on key {_current_key_idx + 1}/{n_keys} "
+                        f"with {model}, rotating..."
+                    )
+                    _current_key_idx = (_current_key_idx + 1) % n_keys
+                    keys_tried += 1
+                    time.sleep(1)
+                else:
+                    raise
+        logger.warning(f"All {n_keys} key(s) exhausted for {model}, trying next model...")
+
+    raise RuntimeError(f"All API keys exhausted on all models: {', '.join(_MODELS)}")
 
 
 def parse_feelings(text: str) -> dict:
@@ -88,9 +137,7 @@ PERSON'S WORDS:
 Return ONLY valid JSON, no markdown:
 {{"weights": {{"ATOM_NAME": 0.0, ...}}, "ahankara_reason": "...", "maya_reason": "..."}}"""
 
-    client = _get_client()
-    response = client.models.generate_content(model="gemini-2.5-pro", contents=prompt)
-    raw = response.text.strip()
+    raw = _call_gemini(prompt)
 
     # Clean markdown fencing if present
     if raw.startswith("```"):
@@ -216,6 +263,4 @@ ABSOLUTE RULES:
 - Keep sentences short. One idea per sentence.
 - Leave a blank line between English and Hindi paragraphs for readability"""
 
-    client = _get_client()
-    response = client.models.generate_content(model="gemini-2.5-pro", contents=prompt)
-    return response.text.strip()
+    return _call_gemini(prompt)
