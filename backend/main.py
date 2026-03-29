@@ -24,6 +24,7 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from engine import build_network, run_query, ATOM_FEELINGS, ALL_ATOMS, GitaNetwork
@@ -220,14 +221,16 @@ def _run_guna_pipeline(answers: dict, text: str, net) -> dict:
 
 @app.post("/api/guna-query")
 async def guna_query(req: GunaQueryRequest):
-    """Guna×Domain pipeline: answers + text -> trajectory + narration.
+    """Guna×Domain pipeline with streaming keepalive.
 
-    Async so health checks aren't blocked by ODE/Gemini computation.
+    Sends a space every 5s to prevent Render's 30s proxy timeout,
+    then sends the full JSON result once computation finishes.
+    D=10000 ODE + Gemini narration can take 40-60s total.
     """
     if _net is None:
         raise HTTPException(status_code=503, detail="Network not ready")
 
-    # Validate answers (supports multi-select: "S", "R", "T", "S,R", "S,T", "R,T")
+    # Validate answers
     valid_ids = {d["id"] for d in get_domain_questions()}
     for did, choice in req.answers.items():
         if did not in valid_ids:
@@ -240,10 +243,23 @@ async def guna_query(req: GunaQueryRequest):
     if len(req.answers) < 11:
         raise HTTPException(status_code=400, detail=f"Need 11 answers, got {len(req.answers)}")
 
-    # Run heavy computation in thread pool so event loop stays free for health checks
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(_pool, _run_guna_pipeline, req.answers, req.text, _net)
-    return result
+    async def stream_with_keepalive():
+        """Stream spaces as keepalive, then the JSON result."""
+        loop = asyncio.get_event_loop()
+        future = loop.run_in_executor(_pool, _run_guna_pipeline, req.answers, req.text, _net)
+
+        # Send keepalive spaces every 5s while computation runs
+        while not future.done():
+            yield b" "
+            await asyncio.sleep(5)
+
+        result = await asyncio.wrap_future(future)
+        yield json.dumps(result).encode()
+
+    return StreamingResponse(
+        stream_with_keepalive(),
+        media_type="application/json",
+    )
 
 
 FB_FILE = pathlib.Path("feedback.jsonl")

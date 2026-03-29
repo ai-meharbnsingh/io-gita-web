@@ -134,7 +134,9 @@ export async function gunaQuery(
     const errBody = await res.text().catch(() => "");
     throw new Error(`Guna query failed (${res.status}): ${errBody}`);
   }
-  return res.json();
+  // Backend streams keepalive spaces then JSON — strip leading whitespace
+  const raw = await res.text();
+  return JSON.parse(raw.trim());
 }
 
 export async function sendFeedback(data: {
