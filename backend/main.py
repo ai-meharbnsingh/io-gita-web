@@ -35,7 +35,7 @@ _net: GitaNetwork | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _net
-    d = int(os.environ.get("GITA_D", 10_000))
+    d = int(os.environ.get("GITA_D", 2_000))
     print(f"Building 20-atom Gita network (D={d}, 60 patterns)...")
     t0 = time.time()
     _net = build_network(D=d)
