@@ -15,6 +15,8 @@ import json
 import time
 import pathlib
 import datetime
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -44,6 +46,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="io-gita API", version="0.1.0", lifespan=lifespan)
+
+# Thread pool for CPU-heavy ODE computation — keeps event loop free for health checks
+_pool = ThreadPoolExecutor(max_workers=2)
 
 app.add_middleware(
     CORSMiddleware,
@@ -168,12 +173,44 @@ def get_questions():
     return {"questions": get_domain_questions()}
 
 
+def _run_guna_pipeline(answers: dict, text: str, net) -> dict:
+    """Sync heavy work: ODE + Gemini narration. Runs in thread pool."""
+    t0 = time.time()
+
+    weights = guna_to_atoms(answers)
+    alpha = guna_to_alpha(answers)
+
+    t1 = time.time()
+    trajectory = run_query(weights, net, alpha=alpha)
+    t2 = time.time()
+
+    entropy = trajectory_entropy(trajectory["linger"])
+    entropy_text = entropy_interpretation(entropy)
+
+    narration = ""
+    try:
+        narration = tongue.narrate_result(trajectory, text)
+    except Exception as e:
+        print(f"[WARN] Narration failed: {e}")
+    t3 = time.time()
+
+    print(f"[TIMING] guna-query: ODE={t2-t1:.2f}s narrate={t3-t2:.2f}s total={t3-t0:.2f}s D={net.D}")
+
+    return {
+        "weights": weights,
+        "alpha": alpha,
+        "entropy": entropy,
+        "entropy_text": entropy_text,
+        "trajectory": trajectory,
+        "narration": narration,
+    }
+
+
 @app.post("/api/guna-query")
-def guna_query(req: GunaQueryRequest):
+async def guna_query(req: GunaQueryRequest):
     """Guna×Domain pipeline: answers + text -> trajectory + narration.
 
-    No LLM for sensing. Deterministic atom weights from 11 answers.
-    LLM only used for narration (tongue).
+    Async so health checks aren't blocked by ODE/Gemini computation.
     """
     if _net is None:
         raise HTTPException(status_code=503, detail="Network not ready")
@@ -191,41 +228,10 @@ def guna_query(req: GunaQueryRequest):
     if len(req.answers) < 11:
         raise HTTPException(status_code=400, detail=f"Need 11 answers, got {len(req.answers)}")
 
-    t0 = time.time()
-
-    # Step 1: Convert answers to atom weights (deterministic, no LLM)
-    weights = guna_to_atoms(req.answers)
-
-    # Step 2: Derive alpha from guna distribution (M56-M59 height formula insight)
-    alpha = guna_to_alpha(req.answers)
-
-    t1 = time.time()
-    # Step 3: Run ODE with dynamic alpha
-    trajectory = run_query(weights, _net, alpha=alpha)
-    t2 = time.time()
-
-    # Step 4: Compute trajectory entropy (M25.2 insight)
-    entropy = trajectory_entropy(trajectory["linger"])
-    entropy_text = entropy_interpretation(entropy)
-
-    # Step 5: Narrate (LLM as tongue only — reads trajectory, uses text for context)
-    narration = ""
-    try:
-        narration = tongue.narrate_result(trajectory, req.text)
-    except Exception as e:
-        print(f"[WARN] Narration failed: {e}")
-    t3 = time.time()
-
-    print(f"[TIMING] guna-query: ODE={t2-t1:.2f}s narrate={t3-t2:.2f}s total={t3-t0:.2f}s D={_net.D}")
-
-    return {
-        "weights": weights,
-        "alpha": alpha,
-        "entropy": entropy,
-        "entropy_text": entropy_text,
-        "trajectory": trajectory,
-        "narration": narration,
-    }
+    # Run heavy computation in thread pool so event loop stays free for health checks
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(_pool, _run_guna_pipeline, req.answers, req.text, _net)
+    return result
 
 
 FB_FILE = pathlib.Path("feedback.jsonl")
