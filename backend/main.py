@@ -86,7 +86,19 @@ class FeedbackRequest(BaseModel):
 @app.get("/health")
 @app.head("/health")
 def health():
-    return {"status": "ok", "network": _net is not None}
+    return {"status": "ok", "network": _net is not None, "D": _net.D if _net else 0}
+
+
+@app.get("/api/ode-timing")
+def ode_timing():
+    """Quick ODE benchmark — returns timing without Gemini."""
+    if _net is None:
+        return {"error": "not ready"}
+    weights = {a: 0.3 for a in ALL_ATOMS}
+    t0 = time.time()
+    traj = run_query(weights, _net)
+    elapsed = time.time() - t0
+    return {"ode_seconds": round(elapsed, 3), "D": _net.D, "steps": traj["total_steps"]}
 
 
 @app.post("/api/parse")
