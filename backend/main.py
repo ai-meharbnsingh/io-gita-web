@@ -207,8 +207,8 @@ def guna_query(req: GunaQueryRequest):
     narration = ""
     try:
         narration = tongue.narrate_result(trajectory, req.text)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[WARN] Narration failed: {e}")
 
     return {
         "weights": weights,

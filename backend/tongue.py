@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import time
+import concurrent.futures
 from google import genai
 from engine import ALL_ATOMS, ATOM_FEELINGS, PATTERN_MEANINGS
 
@@ -40,8 +41,11 @@ def _is_rate_limit(e: Exception) -> bool:
     return any(s in err for s in ("429", "resource exhausted", "rate limit", "quota"))
 
 
-def _call_gemini(prompt: str) -> str:
-    """Call Gemini with key rotation and Pro -> Flash fallback."""
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+
+
+def _call_gemini_inner(prompt: str) -> str:
+    """Inner Gemini call with key rotation and Pro -> Flash fallback."""
     _init_clients()
     global _current_key_idx
     n_keys = len(_clients)
@@ -67,6 +71,16 @@ def _call_gemini(prompt: str) -> str:
         logger.warning(f"All {n_keys} key(s) exhausted for {model}, trying next model...")
 
     raise RuntimeError(f"All API keys exhausted on all models: {', '.join(_MODELS)}")
+
+
+def _call_gemini(prompt: str, timeout_seconds: int = 45) -> str:
+    """Call Gemini with timeout protection (thread-safe)."""
+    future = _executor.submit(_call_gemini_inner, prompt)
+    try:
+        return future.result(timeout=timeout_seconds)
+    except concurrent.futures.TimeoutError:
+        logger.error(f"Gemini API call timed out after {timeout_seconds}s")
+        raise RuntimeError(f"Gemini timed out after {timeout_seconds}s")
 
 
 def parse_feelings(text: str) -> dict:
