@@ -5,11 +5,13 @@ Builds a 20-atom Gita network, composes force vectors from atom weights,
 runs Hopfield attractor dynamics, and analyzes trajectories.
 """
 
+import os
 import numpy as np
 from dataclasses import dataclass
 
 # ODE parameters (proven stable across M33 ablations)
-D_DEFAULT = 10_000
+# Allow override via ENV for resource-constrained hosts (Render free tier)
+D_DEFAULT = int(os.environ.get("GITA_D", 10_000))
 BETA = 4.0
 DT = 0.05
 T_MAX = 800
