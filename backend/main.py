@@ -35,10 +35,11 @@ _net: GitaNetwork | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _net
-    print("Building 20-atom Gita network (D=10000, 60 patterns)...")
+    from engine import D_DEFAULT
+    print(f"Building 20-atom Gita network (D={D_DEFAULT}, 60 patterns)...")
     t0 = time.time()
     _net = build_network()
-    print(f"Network ready in {time.time() - t0:.1f}s")
+    print(f"Network ready in {time.time() - t0:.1f}s (D={_net.D})")
     yield
 
 
@@ -190,14 +191,18 @@ def guna_query(req: GunaQueryRequest):
     if len(req.answers) < 11:
         raise HTTPException(status_code=400, detail=f"Need 11 answers, got {len(req.answers)}")
 
+    t0 = time.time()
+
     # Step 1: Convert answers to atom weights (deterministic, no LLM)
     weights = guna_to_atoms(req.answers)
 
     # Step 2: Derive alpha from guna distribution (M56-M59 height formula insight)
     alpha = guna_to_alpha(req.answers)
 
+    t1 = time.time()
     # Step 3: Run ODE with dynamic alpha
     trajectory = run_query(weights, _net, alpha=alpha)
+    t2 = time.time()
 
     # Step 4: Compute trajectory entropy (M25.2 insight)
     entropy = trajectory_entropy(trajectory["linger"])
@@ -209,6 +214,9 @@ def guna_query(req: GunaQueryRequest):
         narration = tongue.narrate_result(trajectory, req.text)
     except Exception as e:
         print(f"[WARN] Narration failed: {e}")
+    t3 = time.time()
+
+    print(f"[TIMING] guna-query: ODE={t2-t1:.2f}s narrate={t3-t2:.2f}s total={t3-t0:.2f}s D={_net.D}")
 
     return {
         "weights": weights,
